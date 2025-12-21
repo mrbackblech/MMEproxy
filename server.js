@@ -25,18 +25,43 @@ app.use(cors({
 }));
 
 // === 2. Der Proxy ===
+// ... (oberer Teil bleibt gleich)
+
 app.use('/api', createProxyMiddleware({
     target: ERP_URL,
     changeOrigin: true,
     pathRewrite: {
-        // Optional: Falls du Pfade anpassen musst
+        // Falls nötig
     },
-    onProxyReq: (proxyReq) => {
-        // Hier wird das Passwort sicher hinzugefügt
+    onProxyReq: (proxyReq, req, res) => {
+        // 1. Auth Header (wie gehabt)
         proxyReq.setHeader('Authorization', `token ${API_KEY}:${API_SECRET}`);
-        console.log(`Proxy Anfrage an: ${ERP_URL}`);
+
+        // === NEU: DIE FIXES FÜR FEHLER 417 ===
+
+        // 2. Sage ERPNext explizit, welche Site wir meinen
+        // Da wir im Docker-Setup 'bench new-site frontend' gemacht haben:
+        proxyReq.setHeader('X-Frappe-Site-Name', 'frontend');
+        proxyReq.setHeader('Host', 'frontend'); 
+
+        // 3. Störende Header vom Browser entfernen
+        // Wenn ERPNext sieht, dass die Anfrage von "localhost" oder deiner Domain kommt,
+        // blockiert es sie manchmal. Wir tun so, als käme sie von "intern".
+        proxyReq.removeHeader('Origin');
+        proxyReq.removeHeader('Referer');
+        
+        // 4. Cookies entfernen
+        // Wenn du noch eingeloggt warst, stört das Session-Cookie den API-Token.
+        proxyReq.removeHeader('Cookie');
+
+        console.log(`Proxy Anfrage an: ${ERP_URL}${req.url} (Site: frontend)`);
+    },
+    onError: (err, req, res) => {
+        console.error('Proxy Fehler:', err);
+        res.status(500).send('Proxy Error: ' + err.message);
     }
 }));
+
 
 // Healthcheck (damit Coolify weiß, dass er läuft)
 app.get('/health', (req, res) => res.send('Proxy is running OK'));

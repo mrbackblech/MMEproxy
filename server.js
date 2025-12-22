@@ -1,13 +1,11 @@
 const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
-// body-parser brauchen wir hier NICHT mehr aktiv nutzen!
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Konfiguration (ENV Variablen aus Coolify)
-const ERP_URL = process.env.ERP_URL; // http://backend-...:8000
+// Konfiguration
+const ERP_URL = process.env.ERP_URL; // http://backend...:8000
 const API_KEY = process.env.API_KEY;
 const API_SECRET = process.env.API_SECRET;
 const ALLOWED_ORIGIN = process.env.FRONTEND_URL || "*";
@@ -15,44 +13,71 @@ const ALLOWED_ORIGIN = process.env.FRONTEND_URL || "*";
 // 1. CORS erlauben
 app.use(cors({ origin: ALLOWED_ORIGIN, credentials: true }));
 
-// WICHTIG: Kein app.use(bodyParser...) hier! 
-// Wir wollen den Raw-Stream direkt weiterleiten.
+// 2. JSON Parser aktivieren (Damit wir die Daten lesen können)
+app.use(express.json());
 
-// 2. Proxy Konfiguration
-app.use('/api', createProxyMiddleware({
-    target: ERP_URL,
-    changeOrigin: true,
-    
-    onProxyReq: (proxyReq, req, res) => {
-        // A. Authentifizierung
-        proxyReq.setHeader('Authorization', `token ${API_KEY}:${API_SECRET}`);
-
-        // B. Wichtige Header für ERPNext
-        proxyReq.setHeader('Host', 'frontend');
-        proxyReq.setHeader('X-Frappe-Site-Name', 'frontend');
-
-        // C. Störende Header entfernen
-        proxyReq.removeHeader('Origin');
-        proxyReq.removeHeader('Referer');
-        proxyReq.removeHeader('Cookie');
+// 3. Manuelle Proxy-Funktion für POST (Formular)
+app.post('/api/*', async (req, res) => {
+    try {
+        // Die Ziel-URL zusammenbauen (z.B. http://backend:8000/api/resource/Lead)
+        // req.path enthält z.B. "/api/resource/Lead"
+        const targetUrl = `${ERP_URL}${req.path}`;
         
-        // D. DER FIX FÜR 417:
-        // Wir setzen ihn auf LEER (statt nur remove), das ist sicherer.
-        proxyReq.setHeader('Expect', ''); 
+        console.log(`🚀 Sende POST an: ${targetUrl}`);
 
-        console.log(`📡 Proxy (Stream) -> Backend: ${req.method} ${req.url}`);
-    },
-    onError: (err, req, res) => {
-        console.error('🔥 Proxy Error:', err);
-        res.status(500).json({ error: 'Proxy Error', details: err.message });
+        // Wir machen einen ganz frischen Fetch-Call (Server-to-Server)
+        // Das garantiert, dass keine "Expect"-Header vom Browser mitschleifen.
+        const response = await fetch(targetUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `token ${API_KEY}:${API_SECRET}`,
+                'Content-Type': 'application/json',
+                'X-Frappe-Site-Name': 'frontend',
+                'Host': 'frontend'
+            },
+            body: JSON.stringify(req.body) // Wir nehmen die Daten und packen sie neu ein
+        });
+
+        // Antwort vom ERPNext lesen
+        const data = await response.json();
+
+        // Statuscode und Daten an den Browser zurückgeben
+        res.status(response.status).json(data);
+
+    } catch (error) {
+        console.error("🔥 Fehler beim POST:", error);
+        res.status(500).json({ error: error.message });
     }
-}));
+});
 
-// Nur für statische Dateien nutzen wir evtl. Parser, aber hier reicht static:
-app.use(express.static('dist')); // Oder wo deine React-Dateien liegen
+// 4. Manuelle Proxy-Funktion für GET (Projekte laden)
+app.get('/api/*', async (req, res) => {
+    try {
+        const targetUrl = `${ERP_URL}${req.originalUrl}`; // originalUrl enthält auch ?fields=...
+        console.log(`🔍 Sende GET an: ${targetUrl}`);
 
-app.get('/health', (req, res) => res.send('Proxy OK'));
+        const response = await fetch(targetUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `token ${API_KEY}:${API_SECRET}`,
+                'Content-Type': 'application/json',
+                'X-Frappe-Site-Name': 'frontend',
+                'Host': 'frontend'
+            }
+        });
+
+        const data = await response.json();
+        res.status(response.status).json(data);
+
+    } catch (error) {
+        console.error("🔥 Fehler beim GET:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Statische Dateien (Frontend)
+app.use(express.static('dist')); 
 
 app.listen(PORT, () => {
-    console.log(`🛡️  Proxy läuft auf Port ${PORT}`);
+    console.log(`🛡️  Manueller Proxy läuft auf Port ${PORT}`);
 });

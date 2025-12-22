@@ -27,34 +27,25 @@ app.use(cors({
 // === 2. Der Proxy ===
 // ... (oberer Teil bleibt gleich)
 
-
-
 app.use('/api', createProxyMiddleware({
     target: ERP_URL,
-    changeOrigin: true,
+    changeOrigin: true, // Wichtig!
     onProxyReq: (proxyReq, req, res) => {
-        // 1. Authentifizierung
+        // 1. Nur das Passwort anhängen
         proxyReq.setHeader('Authorization', `token ${API_KEY}:${API_SECRET}`);
 
-        // 2. DIE LÖSUNG FÜR FEHLER 417
-        // Wir zwingen ERPNext dazu, die Site "frontend" zu nutzen.
-        proxyReq.setHeader('X-Frappe-Site-Name', 'frontend');
-        proxyReq.setHeader('Host', 'frontend');
+        // 2. KEINE Site-Header senden! 
+        // Nginx macht das für uns, weil "FRAPPE_SITE_NAME_HEADER" gesetzt ist.
+        // Wir verhalten uns einfach wie ein Browser.
 
-        // 3. Störfaktoren entfernen
+        // 3. Nur Aufräumen (Sicherheit)
         proxyReq.removeHeader('Origin');
         proxyReq.removeHeader('Referer');
-        proxyReq.removeHeader('Cookie'); // Wichtig! Alte Cookies blockieren oft die API.
+        proxyReq.removeHeader('Cookie');
 
-        console.log(`📡 Proxy leitet weiter an: ${ERP_URL}${req.url} (Site: frontend)`);
-    },
-    onError: (err, req, res) => {
-        console.error('🔥 Proxy Fehler:', err);
-        res.status(500).json({ error: 'Proxy Error', details: err.message });
+        console.log(`📡 Proxy Anfrage: ${req.url}`);
     }
 }));
-
-
 
 
 // Healthcheck (damit Coolify weiß, dass er läuft)

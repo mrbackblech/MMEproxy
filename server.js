@@ -43,6 +43,8 @@ app.use('/api', createProxyMiddleware({
         proxyReq.removeHeader('Referer');
         proxyReq.removeHeader('Cookie');
 
+        proxyReq.removeHeader('Expect'); 
+
         console.log(`📡 Proxy Anfrage: ${req.url}`);
     }
 }));

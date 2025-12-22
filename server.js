@@ -26,12 +26,13 @@ app.use('/api', createProxyMiddleware({
     changeOrigin: true,
     
     onProxyReq: (proxyReq, req, res) => {
-        // A. Authentifizierung hinzufügen
+        // Authentifizierung
         proxyReq.setHeader('Authorization', `token ${API_KEY}:${API_SECRET}`);
 
-        // B. Nginx sagen, welche Site gemeint ist (WICHTIG für Docker)
-        proxyReq.setHeader('Host', 'frontend');
+        // WICHTIG: Das Backend braucht diesen Header, da Nginx ihn nicht mehr setzt!
         proxyReq.setHeader('X-Frappe-Site-Name', 'frontend');
+        proxyReq.setHeader('Host', 'frontend');
+
 
         // C. Störende Header entfernen
         proxyReq.removeHeader('Origin');

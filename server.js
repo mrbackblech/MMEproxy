@@ -31,18 +31,17 @@ app.use('/api', createProxyMiddleware({
     target: ERP_URL,
     changeOrigin: true, // Wichtig!
     onProxyReq: (proxyReq, req, res) => {
-        // 1. Nur das Passwort anhängen
+        // 1. Authentifizierung
         proxyReq.setHeader('Authorization', `token ${API_KEY}:${API_SECRET}`);
 
-        // 2. KEINE Site-Header senden! 
-        // Nginx macht das für uns, weil "FRAPPE_SITE_NAME_HEADER" gesetzt ist.
-        // Wir verhalten uns einfach wie ein Browser.
-
-        // 3. Nur Aufräumen (Sicherheit)
+        // 2. Browser-Header entfernen (wichtig für Sicherheit)
         proxyReq.removeHeader('Origin');
         proxyReq.removeHeader('Referer');
         proxyReq.removeHeader('Cookie');
 
+        // 3. FIX FÜR FEHLER 417 (WICHTIG!)
+        // Node.js sendet bei POST oft "Expect: 100-continue". 
+        // Das mag ERPNext/Nginx nicht und wirft Fehler 417. Wir löschen ihn hier.
         proxyReq.removeHeader('Expect'); 
 
         console.log(`📡 Proxy Anfrage: ${req.url}`);

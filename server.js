@@ -96,13 +96,16 @@ app.get('/files/*', async (req, res) => {
             }
         });
 
-        // Stream die Datei direkt weiter (nicht als JSON parsen)
+        // Stream die Datei direkt weiter
         if (response.ok) {
             // Headers weiterleiten
-            response.headers.forEach((value, key) => {
+            for (const [key, value] of response.headers) {
                 res.setHeader(key, value);
-            });
-            response.body.pipe(res);
+            }
+            
+            // Body als Buffer lesen und senden
+            const buffer = await response.arrayBuffer();
+            res.send(Buffer.from(buffer));
         } else {
             res.status(response.status).send(await response.text());
         }

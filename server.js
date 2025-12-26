@@ -81,3 +81,34 @@ app.use(express.static('dist'));
 app.listen(PORT, () => {
     console.log(`🛡️  Manueller Proxy läuft auf Port ${PORT}`);
 });
+// 5. Proxy für öffentliche Dateien (Bilder)  
+app.get('/files/*', async (req, res) => {
+    try {
+        const targetUrl = `${ERP_URL}${req.originalUrl}`;
+        console.log(`📁 Lade Datei: ${targetUrl}`);
+
+        const response = await fetch(targetUrl, {
+            method: 'GET',
+            // Keine Authentifizierung für öffentliche Dateien
+            headers: {
+                'X-Frappe-Site-Name': 'frontend',
+                'Host': 'frontend'
+            }
+        });
+
+        // Stream die Datei direkt weiter (nicht als JSON parsen)
+        if (response.ok) {
+            // Headers weiterleiten
+            response.headers.forEach((value, key) => {
+                res.setHeader(key, value);
+            });
+            response.body.pipe(res);
+        } else {
+            res.status(response.status).send(await response.text());
+        }
+
+    } catch (error) {
+        console.error("🔥 Fehler beim Laden der Datei:", error);
+        res.status(500).json({ error: error.message });
+    }
+});

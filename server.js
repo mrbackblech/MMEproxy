@@ -66,8 +66,9 @@ app.get('/api/*', async (req, res) => {
             headers: {
                 'Authorization': `token ${API_KEY}:${API_SECRET}`,
                 'Content-Type': 'application/json',
-                'X-Frappe-Site-Name': 'frontend',
-                'Host': 'frontend',
+                // Vereinfachte Headers (wie im funktionierenden test-erpnext Endpoint)
+                // 'X-Frappe-Site-Name': 'frontend',
+                // 'Host': 'frontend',
                 // Explizit Expect-Header entfernen (Fix für 417 Expectation Failed)
                 'Expect': ''
             }

@@ -53,8 +53,11 @@ app.post('/api/*', async (req, res) => {
 // 4. Manuelle Proxy-Funktion für GET (Projekte laden)
 app.get('/api/*', async (req, res) => {
     try {
-        const targetUrl = `${ERP_URL}${req.originalUrl}`; // originalUrl enthält auch ?fields=...
+        // Bessere URL-Konstruktion: Verwende req.path statt req.originalUrl
+        const targetUrl = `${ERP_URL}${req.path}${req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''}`;
         console.log(`🔍 Sende GET an: ${targetUrl}`);
+        console.log(`📋 Original URL: ${req.originalUrl}`);
+        console.log(`📋 Path: ${req.path}`);
         console.log(`📋 Query: ${JSON.stringify(req.query)}`);
         console.log(`📋 Headers: ${JSON.stringify(req.headers)}`);
         console.log(`🔧 ERP_URL: ${ERP_URL}`);

@@ -57,6 +57,9 @@ app.get('/api/*', async (req, res) => {
         console.log(`🔍 Sende GET an: ${targetUrl}`);
         console.log(`📋 Query: ${JSON.stringify(req.query)}`);
         console.log(`📋 Headers: ${JSON.stringify(req.headers)}`);
+        console.log(`🔧 ERP_URL: ${ERP_URL}`);
+        console.log(`🔑 API_KEY gesetzt: ${!!API_KEY}`);
+        console.log(`🔒 API_SECRET gesetzt: ${!!API_SECRET}`);
 
         const response = await fetch(targetUrl, {
             method: 'GET',
@@ -70,20 +73,77 @@ app.get('/api/*', async (req, res) => {
             }
         });
 
+        console.log(`📊 ERPNext Response Status: ${response.status}`);
+        console.log(`📊 ERPNext Response Headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()))}`);
+
         const data = await response.json();
+        console.log(`📦 ERPNext Response Data: ${JSON.stringify(data).substring(0, 500)}...`);
+
         res.status(response.status).json(data);
 
     } catch (error) {
         console.error("🔥 Fehler beim GET:", error);
-        res.status(500).json({ error: error.message });
+        console.error("🔥 Error Details:", error.stack);
+        res.status(500).json({
+            error: error.message,
+            details: "Proxy konnte nicht mit ERPNext kommunizieren",
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// Health-Check Endpoint für Debugging
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        config: {
+            erpUrl: ERP_URL ? 'configured' : 'missing',
+            apiKey: API_KEY ? 'configured' : 'missing',
+            apiSecret: API_SECRET ? 'configured' : 'missing',
+            frontendUrl: ALLOWED_ORIGIN
+        }
+    });
+});
+
+// Test-Endpoint für ERPNext Verbindung
+app.get('/test-erpnext', async (req, res) => {
+    try {
+        const testUrl = `${ERP_URL}/api/method/frappe.auth.get_logged_user`;
+        console.log(`🧪 Teste ERPNext Verbindung: ${testUrl}`);
+
+        const response = await fetch(testUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `token ${API_KEY}:${API_SECRET}`,
+                'Content-Type': 'application/json',
+            }
+        });
+
+        const data = await response.text();
+        res.json({
+            status: response.status,
+            erpUrl: ERP_URL,
+            response: data.substring(0, 200)
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            error: error.message,
+            erpUrl: ERP_URL,
+            stack: error.stack
+        });
     }
 });
 
 // Statische Dateien (Frontend)
-app.use(express.static('dist')); 
+app.use(express.static('dist'));
 
 app.listen(PORT, () => {
     console.log(`🛡️  Manueller Proxy läuft auf Port ${PORT}`);
+    console.log(`🔧 ERP_URL: ${ERP_URL || 'NICHT GESETZT'}`);
+    console.log(`🔑 API_KEY: ${API_KEY ? 'gesetzt' : 'NICHT GESETZT'}`);
+    console.log(`🔒 API_SECRET: ${API_SECRET ? 'gesetzt' : 'NICHT GESETZT'}`);
 });
 // 5. Proxy für öffentliche Dateien (Bilder)  
 app.get('/files/*', async (req, res) => {

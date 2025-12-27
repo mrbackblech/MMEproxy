@@ -55,6 +55,8 @@ app.get('/api/*', async (req, res) => {
     try {
         const targetUrl = `${ERP_URL}${req.originalUrl}`; // originalUrl enthält auch ?fields=...
         console.log(`🔍 Sende GET an: ${targetUrl}`);
+        console.log(`📋 Query: ${JSON.stringify(req.query)}`);
+        console.log(`📋 Headers: ${JSON.stringify(req.headers)}`);
 
         const response = await fetch(targetUrl, {
             method: 'GET',
@@ -62,7 +64,9 @@ app.get('/api/*', async (req, res) => {
                 'Authorization': `token ${API_KEY}:${API_SECRET}`,
                 'Content-Type': 'application/json',
                 'X-Frappe-Site-Name': 'frontend',
-                'Host': 'frontend'
+                'Host': 'frontend',
+                // Explizit Expect-Header entfernen (Fix für 417 Expectation Failed)
+                'Expect': ''
             }
         });
 

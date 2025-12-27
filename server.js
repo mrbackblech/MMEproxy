@@ -66,9 +66,8 @@ app.get('/api/*', async (req, res) => {
             headers: {
                 'Authorization': `token ${API_KEY}:${API_SECRET}`,
                 'Content-Type': 'application/json',
-                // Vereinfachte Headers (wie im funktionierenden test-erpnext Endpoint)
-                // 'X-Frappe-Site-Name': 'frontend',
-                // 'Host': 'frontend',
+                // Korrekter Host-Header für ERPNext
+                'Host': '100.78.117.19:8090',
                 // Explizit Expect-Header entfernen (Fix für 417 Expectation Failed)
                 'Expect': ''
             }

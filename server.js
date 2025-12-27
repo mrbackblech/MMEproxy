@@ -53,27 +53,24 @@ app.post('/api/*', async (req, res) => {
 // 4. Manuelle Proxy-Funktion für GET (Projekte laden)
 app.get('/api/*', async (req, res) => {
     try {
-        // Bessere URL-Konstruktion: Verwende req.path statt req.originalUrl
-        const targetUrl = `${ERP_URL}${req.path}${req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''}`;
-        console.log(`🔍 Sende GET an: ${targetUrl}`);
-        console.log(`📋 Original URL: ${req.originalUrl}`);
-        console.log(`📋 Path: ${req.path}`);
-        console.log(`📋 Query: ${JSON.stringify(req.query)}`);
-        console.log(`📋 Headers: ${JSON.stringify(req.headers)}`);
-        console.log(`🔧 ERP_URL: ${ERP_URL}`);
-        console.log(`🔑 API_KEY gesetzt: ${!!API_KEY}`);
-        console.log(`🔒 API_SECRET gesetzt: ${!!API_SECRET}`);
+        const targetUrl = `${ERP_URL}${req.originalUrl}`;
+
+        // Headers vorbereiten - Expect Header entfernen!
+        const headers = {
+            'Authorization': `token ${API_KEY}:${API_SECRET}`,
+            'Content-Type': 'application/json',
+            'X-Frappe-Site-Name': 'frontend',
+            'Host': 'frontend'
+        };
+
+        // WICHTIG: Expect Header explizit entfernen
+        // (wird sonst automatisch von fetch hinzugefügt)
 
         const response = await fetch(targetUrl, {
             method: 'GET',
-            headers: {
-                'Authorization': `token ${API_KEY}:${API_SECRET}`,
-                'Content-Type': 'application/json',
-                // Korrekter Host-Header für ERPNext
-                'Host': '100.78.117.19:8090',
-                // Explizit Expect-Header entfernen (Fix für 417 Expectation Failed)
-                'Expect': ''
-            }
+            headers: headers,
+            // Expect Header verhindern
+            signal: AbortSignal.timeout(30000) // Optional: Timeout
         });
 
         console.log(`📊 ERPNext Response Status: ${response.status}`);

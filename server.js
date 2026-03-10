@@ -92,6 +92,50 @@ app.get('/api/*', async (req, res) => {
     }
 });
 
+// 5. Manuelle Proxy-Funktion für PATCH (analog zu POST)
+app.patch('/api/*', async (req, res) => {
+    try {
+        const targetUrl = `${ERP_URL}${req.path}`;
+        const response = await fetch(targetUrl, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `token ${API_KEY}:${API_SECRET}`,
+                'Content-Type': 'application/json',
+                'X-Frappe-Site-Name': 'frontend',
+                'Host': 'frontend'
+            },
+            body: JSON.stringify(req.body)
+        });
+        const data = await response.json();
+        res.status(response.status).json(data);
+    } catch (error) {
+        console.error("🔥 Fehler beim PATCH:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 6. Manuelle Proxy-Funktion für PUT (analog zu POST)
+app.put('/api/*', async (req, res) => {
+    try {
+        const targetUrl = `${ERP_URL}${req.path}`;
+        const response = await fetch(targetUrl, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `token ${API_KEY}:${API_SECRET}`,
+                'Content-Type': 'application/json',
+                'X-Frappe-Site-Name': 'frontend',
+                'Host': 'frontend'
+            },
+            body: JSON.stringify(req.body)
+        });
+        const data = await response.json();
+        res.status(response.status).json(data);
+    } catch (error) {
+        console.error("🔥 Fehler beim PUT:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Health-Check Endpoint für Debugging
 app.get('/health', (req, res) => {
     res.json({
